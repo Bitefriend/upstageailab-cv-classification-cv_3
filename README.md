@@ -6,7 +6,79 @@
 |:----------------------------------:|:-----------------------------------:|:-----------------------------------:|:------------------------------------:|
 |                 팀장                 |                 팀원                  |                 팀원                  |                  팀원                  |
 
-## 0. Overview
+
+## 0. Getting Started
+
+### Quick Setup for Cloud Instance
+
+- 본 프로젝트는 클라우드 인스턴스에서 진행됩니다.
+- 다음 단계를 따라 환경을 설정하고 프로젝트를 시작하세요.
+
+#### 1. 환경 설정
+
+클라우드 인스턴스에 접속한 후, 다음 명령어를 실행하여 개발 환경을 자동으로 설정합니다,
+
+```bash
+# 환경 설정 스크립트 다운로드 및 실행
+wget https://gist.githubusercontent.com/yuiyeong/8ae3f167e97aeff90785a4ccda41e5fe/raw/d5e030ea64bbd9c41ce2b4c825bc03c86f0c3dac/setup_env.sh
+chmod +x setup_env.sh
+./setup_env
+```
+
+**설정 내용:**
+- Python 3.11 conda 환경 (py311) 생성
+- Poetry 설치 및 PATH 설정
+- /workspace 작업 디렉토리 생성
+- SSH 로그인 시 자동으로 /workspace로 이동
+
+#### 2. 환경 적용
+
+스크립트 실행 후 SSH를 재접속하여 변경사항을 적용합니다.
+
+```bash
+# SSH 재접속 후 환경 확인
+python --version  # Python 3.11.x 확인
+poetry --version  # Poetry 설치 확인
+pwd              # /workspace 확인
+```
+#### 3. Git Config
+
+- 다음 명령어를 실행하여 git config 를 설정합니다.
+- `{username}` 과 `{emailaddr}` 에 본인의 github name 과 email 을 적어주세요
+
+```bash
+git config --global user.name "{username}"
+git config --global user.email "{emailaddr}"
+git config --global core.editor "vim"
+git config --global core.pager "cat"
+```
+
+- 설정된 내용은 `git config --list` 로 확인합니다.
+- 수정이 필요할 경우, `vi ~/.gitconfig` 를 실행해서 값을 수정합니다.
+
+#### 4. 프로젝트 복제 및 설정
+
+```bash
+# /workspace 디렉토리에서 프로젝트 복제
+cd /workspace
+git clone https://github.com/AIBootcamp13/upstageailab-cv-classification-cv_3.git
+cd upstageailab-cv-classification-cv-3
+
+# Poetry를 사용하여 의존성 설치
+poetry install
+```
+
+#### 5. 데이터 다운로드
+
+```bash
+# 데이터 다운로드 (대회 페이지에서 URL 확인)
+wget [DATA_URL] -O data.tar.gz
+
+# 압축 해제
+tar -zxvf data.tar.gz
+
+mv data/ upstageailab-cv-classification-cv-3/data/raw
+```
 
 ### Environment
 
@@ -89,23 +161,20 @@ poetry install
 ### Directory
 
 ```
-├── data
-│     ├── fonts
-│     │     └── NanumBarunGothic.ttf
-│     └── raw
-├── docs
-│     └── img
-├── notebooks
-│     ├── duhwan
-│     ├── jaehyeong
-│     ├── juyoung
-│     ├── notebook_template.ipynb
-│     └── yuiyeong
-│         └── hello_baseline_codes.ipynb
-├── scripts
-│     └── init-cloud-instance.sh
-└── src
-    └── __init__.py
+├── data/                           # 데이터 저장 디렉토리
+│   ├── fonts/                      # 문서 이미지 생성/처리용 폰트 파일
+│   └── raw/                        # 원본 데이터 (train, test 이미지, CSV 파일)
+├── docs/                           # 프로젝트 문서 및 자료
+│   └── img/                        # 문서용 이미지
+├── notebooks/                      # Jupyter 노트북 디렉토리
+│   ├── duhwan/                     # 김두환 개인 실험 노트북
+│   ├── jaehyeong/                  # 조재형 개인 실험 노트북
+│   ├── juyoung/                    # 나주영 개인 실험 노트북
+│   ├── yuiyeong/                   # 조의영 개인 실험 노트북
+│   └── notebook_template.ipynb     # 노트북 작성을 위한 공통 템플릿
+├── scripts/                        # 유틸리티 스크립트 모음
+│   └── init-cloud-instance.sh      # 클라우드 인스턴스 환경 설정 스크립트
+└── src/                            # 소스 코드 메인 디렉토리
 ```
 
 ## 3. Data Description
@@ -127,64 +196,15 @@ poetry install
 
 ### EDA
 
-**클래스 분포 분석**
-
-- 학습 데이터의 클래스별 이미지 수 분포 확인
-- 클래스 불균형 여부 분석
-
-**이미지 특성 분석**
-
-- 이미지 크기 분포
-- 색상 채널 분석 (RGB/Grayscale)
-- 이미지 품질 및 노이즈 분석
-
-**데이터 품질 이슈**
-
-- 평가 데이터에 랜덤 회전(Rotation) 및 뒤집기(Flip) 적용
-- 일부 훼손된 이미지 존재
+W.I.P.
 
 ### Data Processing
 
-**전처리 파이프라인**
-
-1. 이미지 리사이징 및 정규화
-2. 데이터 증강 기법 적용
-3. 클래스 불균형 해결을 위한 샘플링 전략
-
-**데이터 증강**
-
-- Albumentations 라이브러리 활용
-- 회전, 뒤집기, 색상 변환, 노이즈 추가 등
+W.I.P.
 
 ## 4. Modeling
 
-### Model Description
-
-**베이스 모델**
-
-- TIMM 라이브러리의 사전 훈련된 모델 활용
-- EfficientNet, ResNet, Vision Transformer 등 다양한 아키텍처 실험
-
-**모델 선택 기준**
-
-- 문서 이미지의 특성을 고려한 모델 구조
-- 17개 클래스 분류에 적합한 성능
-- 추론 속도와 정확도의 균형
-
-### Modeling Process
-
-**실험 과정**
-
-1. 베이스라인 모델 구축
-2. 하이퍼파라미터 튜닝
-3. 앙상블 모델 구성
-4. 교차 검증을 통한 모델 검증
-
-**최적화 기법**
-
-- Learning Rate Scheduling
-- 정규화 기법 (Dropout, Weight Decay)
-- 손실 함수 최적화
+W.I.P.
 
 ## 5. Result
 

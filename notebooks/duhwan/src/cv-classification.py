@@ -5,14 +5,14 @@ import random
 
 import timm
 import torch
-import albumentations as A
+import cv2
+
 import pandas as pd
 import numpy as np
 import torch.nn as nn
-from albumentations.pytorch import ToTensorV2
 from torch.optim import Adam
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset, random_split
 from PIL import Image
 from tqdm import tqdm
 
@@ -26,9 +26,11 @@ sys.argv = ['']
 # 환경변수 읽기
 if (python_path := dotenv_values().get('PYTHONPATH')) and python_path not in sys.path: sys.path.append(python_path)
 
-from src.data import ImageDataset
+from src.data.FullAugraphyPipeline import FullAugraphyPipeline
+from src.data.ImageDataset import ImageDataset
 from src.model.CustomModel import CustomModel
 from src.util import config
+from src.util.utils import send_kakao_message
 
 # 시드 고정
 def random_seed(seed_num=42):
@@ -87,20 +89,102 @@ def prepare_data(batch_size=32, num_workers=4):
 def main():
 
     # model config
-    model_name = 'resnet34' # 'resnet50' 'efficientnet-b0', ...
+    model_name = 'efficientnet_b4' # 'resnet50' 'efficientnet_b4', ...
 
     # training config
-    EPOCHS = 1
+    EPOCHS = 10
     BATCH_SIZE = 32
     num_workers = 0
     num_classes = 17
     learning_rate = 1e-3
     
+    # 모델 초기화 전에 설정
+    torch.set_float32_matmul_precision('medium')
+    
     random_seed(42)
 
     # 데이터 로더 준비
-    train_loader, val_loader, test_loader = prepare_data(batch_size=BATCH_SIZE, num_workers=4)
+    #train_loader, val_loader, test_loader = prepare_data(batch_size=BATCH_SIZE, num_workers=4)
 
+    augmentation_pipeline = FullAugraphyPipeline(max_effects=2)
+    
+    # 커스텀 변환 클래스 정의
+    class To_BGR(object):
+        """PIL RGB 이미지를 numpy BGR 이미지로 변환"""
+        def __call__(self, image):
+            image_numpy = np.array(image)
+            if len(image_numpy.shape) < 3:
+                return cv2.cvtColor(image_numpy, cv2.COLOR_GRAY2BGR)
+            else:
+                return cv2.cvtColor(image_numpy, cv2.COLOR_RGB2BGR)
+
+    # 수정된 변환 파이프라인
+    dirty_transforms = transforms.Compose([
+        transforms.Resize((224, 224)),
+        To_BGR(),
+        augmentation_pipeline,  # Augraphy 적용
+        transforms.ToTensor(),  # numpy -> tensor
+        # 정규화
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    clean_transforms = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        # 정규화
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    # 데이터셋 생성
+    d1 = ImageDataset(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR, transform=dirty_transforms)
+    d2 = ImageDataset(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR, transform=clean_transforms)
+
+    train_dataset = ConcatDataset([d1, d2])
+
+    # 전체 데이터셋을 8:2로 분할
+    train_size = int(0.8 * len(train_dataset))
+    val_size = len(train_dataset) - train_size
+
+    train_dataset, val_dataset = random_split(
+        train_dataset, 
+        [train_size, val_size]
+        #generator=torch.Generator().manual_seed(42)  # 재현 가능성을 위한 시드
+    )
+
+    test_dataset = ImageDataset(
+        config.CV_CLS_TEST_CSV,
+        config.CV_CLS_TEST_DIR,
+        transform=clean_transforms
+    )
+
+    # DataLoader 정의
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False
+    )
+
+    val_loader = DataLoader(
+        val_dataset,  # 별도의 검증 데이터셋
+        batch_size=BATCH_SIZE,
+        shuffle=False,  # 검증 시에는 셔플하지 않음
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True,
+        drop_last=False
+    )
+    
     model = CustomModel(
         model_name= model_name,
         num_classes=num_classes,
@@ -145,5 +229,6 @@ def main():
     else:
         print("테스트 결과를 가져올 수 없습니다.")
 
+    send_kakao_message("작업종료!\n\n" + str(trainer.callback_metrics))
 if __name__ == "__main__":
     main()

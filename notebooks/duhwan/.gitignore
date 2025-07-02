@@ -1,5 +1,7 @@
 data/
 outputs/
+augraphy_cache/
+fonts/
 src/augraphy_cache/
 src/fonts/
 # Byte-compiled / optimized / DLL files

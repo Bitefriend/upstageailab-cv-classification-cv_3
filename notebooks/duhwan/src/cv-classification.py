@@ -44,7 +44,7 @@ def random_seed(seed_num=42):
     #torch.backends.cudnn.benchmark = False
 
 # 데이터 준비 함수
-def prepare_data(batch_size=32, num_workers=4):
+def prepare_data(batch_size=32, num_workers=3):
     
    # 데이터셋 생성
     train_dataset, val_dataset, test_dataset = get_datasets()
@@ -87,7 +87,7 @@ def main():
 
     # training config
     EPOCHS = 1
-    BATCH_SIZE = 32
+    BATCH_SIZE = 64
     num_workers = 0
     num_classes = 17
     learning_rate = 1e-3
@@ -145,8 +145,6 @@ def main():
 
     else:
         print("테스트 결과를 가져올 수 없습니다.")
-
-    send_kakao_message("작업종료!")
 
 if __name__ == "__main__":
     main()

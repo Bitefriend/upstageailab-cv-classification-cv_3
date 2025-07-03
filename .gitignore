@@ -114,3 +114,8 @@ Thumbs.db
 # Ruff cache
 .ruff_cache/
 data/raw
+
+
+# etc
+.local/
+.viminfo

@@ -1,0 +1,43 @@
+name: Sync Subtree
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Store current HEAD
+        run: echo "OLD_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          
+      - name: Update subtree
+        run: |
+          echo "Updating existing subtree..."
+          # -v 옵션 제거, 디버그가 필요하면 -d 사용
+          git subtree pull --prefix=notebooks/duhwan/gx-train https://github.com/korea202/gx-train.git main --squash
+          
+      - name: Push changes if updated
+        run: |
+          if [ "$OLD_HEAD" != "$(git rev-parse HEAD)" ]; then
+            echo "Subtree updated, pushing changes..."
+            git push origin main
+          else
+            echo "No changes in subtree"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

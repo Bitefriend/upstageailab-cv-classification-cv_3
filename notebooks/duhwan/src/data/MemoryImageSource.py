@@ -8,7 +8,7 @@ from src.util import config
 class MemoryImageSource:
     def __init__(self, csv, path, img_size=224 ):
      
-        self.df = pd.read_csv(csv).values
+        self.df = pd.read_csv(csv)
         self.image_dict = {}
         for index, row in self.df.iterrows():
             # 파일명 추출

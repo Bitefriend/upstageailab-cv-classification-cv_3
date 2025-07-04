@@ -7,29 +7,33 @@ import pandas as pd
 import numpy as np
 import cv2
 
-from src.data.FullAugraphyPipeline import FullAugraphyPipeline
+from src.data.MemoryImageSource import MemoryImageSource
+from src.data.FullAugraphyPipelineQueue import FullAugraphyPipelineQueue
 from src.util import config 
 
-class CvImageDataset(Dataset):
-    def __init__(self, csv, path, transform=None, img_size=224 ):
-        self.df = pd.read_csv(csv).values
-        self.path = path
+class CvImageDatasetFast(Dataset):
+    def __init__(self, source, transform=None, img_size=224 ):
+        self.df = source.df.values
+        self.img_source = source
         self.transform = transform
         self.img_size = img_size
 
     def __len__(self):
-        return len(self.df)
+        return len(self.img_source.df)
 
     def __getitem__(self, idx):
-        name, target = self.df[idx]
-        img = Image.open(os.path.join(self.path, name)).convert('RGB')
+        name, target = self.img_source.df.iloc[idx]
+        img = self.img_source[name]
         if self.transform:
             img = self.transform(img)
         return img, target
 
 
 # 파이프라인
-augmentation_pipeline = FullAugraphyPipeline(max_effects=2)
+augmentation_pipeline = FullAugraphyPipelineQueue(max_effects=2)
+
+train_source = MemoryImageSource(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR)
+test_source = MemoryImageSource(config.CV_CLS_TEST_CSV,config.CV_CLS_TEST_DIR,)
 
 # 커스텀 변환 클래스 정의
 class To_BGR(object):
@@ -43,7 +47,6 @@ class To_BGR(object):
 
 # 수정된 변환 파이프라인
 dirty_transforms = transforms.Compose([
-    transforms.Resize((224, 224)),
     To_BGR(),
     augmentation_pipeline,  # Augraphy 적용
     transforms.ToTensor(),  # numpy -> tensor
@@ -52,7 +55,6 @@ dirty_transforms = transforms.Compose([
 ])
 
 clean_transforms = transforms.Compose([
-    transforms.Resize((224, 224)),
     transforms.ToTensor(),
     # 정규화
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -62,8 +64,8 @@ clean_transforms = transforms.Compose([
 def get_datasets():
     
     # 데이터셋 생성
-    d1 = CvImageDataset(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR, transform=dirty_transforms)
-    d2 = CvImageDataset(config.CV_CLS_TRAIN_CSV, config.CV_CLS_TRAIN_DIR, transform=clean_transforms)
+    d1 = CvImageDatasetFast(train_source, transform=dirty_transforms)
+    d2 = CvImageDatasetFast(train_source, transform=clean_transforms)
 
     train_dataset = ConcatDataset([d1, d2])
 
@@ -77,10 +79,7 @@ def get_datasets():
         #generator=torch.Generator().manual_seed(42)  # 재현 가능성을 위한 시드
     )
 
-    test_dataset = CvImageDataset(
-        config.CV_CLS_TEST_CSV,
-        config.CV_CLS_TEST_DIR,
-        transform=clean_transforms
+    test_dataset = CvImageDatasetFast(test_source, transform=clean_transforms
     )
 
     return train_dataset, val_dataset, test_dataset   

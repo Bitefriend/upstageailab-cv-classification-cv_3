@@ -21,10 +21,10 @@ sys.argv = ['']
 # 환경변수 읽기
 if (python_path := dotenv_values().get('PYTHONPATH')) and python_path not in sys.path: sys.path.append(python_path)
 
+#from src.data.CvImageDatasetFast import get_datasets
 from src.data.CvImageDataset import get_datasets
 from src.model.CustomModel import CustomModel
 from src.util import config
-from src.util.utils import send_kakao_message
 
 # 시드 고정
 def random_seed(seed_num=42):
@@ -44,7 +44,7 @@ def random_seed(seed_num=42):
     #torch.backends.cudnn.benchmark = False
 
 # 데이터 준비 함수
-def prepare_data(batch_size=32, num_workers=3):
+def prepare_data(batch_size=32, num_workers=4):
     
    # 데이터셋 생성
     train_dataset, val_dataset, test_dataset = get_datasets()
@@ -86,7 +86,7 @@ def main():
     model_name = 'efficientnet_b4' # 'resnet50' 'efficientnet_b4', ...
 
     # training config
-    EPOCHS = 1
+    EPOCHS = 10
     BATCH_SIZE = 64
     num_workers = 0
     num_classes = 17
@@ -146,5 +146,6 @@ def main():
     else:
         print("테스트 결과를 가져올 수 없습니다.")
 
+  
 if __name__ == "__main__":
     main()

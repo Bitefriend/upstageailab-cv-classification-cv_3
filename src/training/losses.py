@@ -72,6 +72,66 @@ class FocalLoss(nn.Module):
 
         # 전체 배치의 평균 loss 반환
         return loss.mean()
+    
+class AsymmetricLoss(nn.Module):
+    def __init__(self, gamma_pos=0, gamma_neg=4, eps=1e-8):
+        super().__init__()
+        # 양성 클래스(정답)와 음성 클래스(정답 아님)에 대한 감쇠 계수를 따로 설정
+        self.gamma_pos = gamma_pos  # 정답 클래스에 적용할 감쇠 지수
+        self.gamma_neg = gamma_neg  # 오답 클래스에 적용할 감쇠 지수
+        self.eps = eps              # log 계산 시 0으로 나누는 것을 방지하기 위한 작은 수
+
+    def forward(self, x, y):
+        # x: 모델이 출력한 로짓 (batch_size, num_classes)
+        # y: 정답 라벨을 one-hot 인코딩한 벡터 (batch_size, num_classes)
+
+        x = x.float()
+        y = y.float()
+
+        # sigmoid를 적용해서 확률값으로 변환 (클래스별)
+        xs_pos = torch.sigmoid(x)        # 양성 클래스의 확률
+        xs_neg = 1.0 - xs_pos            # 음성 클래스의 확률
+
+        # 양성 클래스에 대한 손실: (1 - p)^gamma * log(p)
+        loss_pos = y * torch.pow(1 - xs_pos, self.gamma_pos) * torch.log(xs_pos + self.eps)
+
+        # 음성 클래스에 대한 손실: p^gamma * log(1 - p)
+        loss_neg = (1 - y) * torch.pow(xs_pos, self.gamma_neg) * torch.log(xs_neg + self.eps)
+
+        # 양성 손실과 음성 손실을 합쳐서 전체 손실 계산 (음수 부호 주의!)
+        loss = - (loss_pos + loss_neg)
+
+        # 배치 평균 반환
+        return loss.mean()
+    
+class PolyLoss(nn.Module):
+    def __init__(self, epsilon=1.0):
+        super().__init__()
+        # epsilon: CrossEntropy에 추가로 더해질 다항식 보정항의 가중치
+        self.epsilon = epsilon
+        self.ce = nn.CrossEntropyLoss()  # 기존 CrossEntropy를 내부에서 사용
+
+    def forward(self, input, target):
+        # input: 모델의 로짓 출력 (batch_size, num_classes)
+        # target: 실제 정답 클래스 인덱스 (batch_size)
+
+        # 기본 CrossEntropyLoss 계산
+        ce_loss = self.ce(input, target)
+
+        # softmax로 확률값 변환
+        probs = F.softmax(input, dim=1)
+
+        # 정답을 one-hot 벡터로 변환 (shape: batch_size x num_classes)
+        one_hot = F.one_hot(target, num_classes=input.size(1)).float()
+
+        # pt: 정답 클래스에 해당하는 확률값만 추출 (모델이 정답을 얼마나 맞췄는지)
+        pt = (probs * one_hot).sum(dim=1)
+
+        # PolyLoss = CE + ε * (1 - pt)  
+        # 정답을 틀릴수록 (pt 작을수록) 더 많은 패널티를 주는 구조
+        poly_loss = ce_loss + self.epsilon * (1 - pt).mean()
+
+        return poly_loss
 
 # 클래스를 정상적으로 불러왔는지 확인하기 위한 출력
 print("✅ LabelSmoothingCrossEntropy = ", LabelSmoothingCrossEntropy)
